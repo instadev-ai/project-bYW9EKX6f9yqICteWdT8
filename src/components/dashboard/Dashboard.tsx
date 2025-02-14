@@ -84,7 +84,7 @@ export const Dashboard = () => {
     >
       <div className="relative">
         <Confetti />
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-[1600px] mx-auto">
           <div className="flex justify-between items-center mb-8">
             <motion.h1 
               initial={{ opacity: 0, y: -20 }}
@@ -139,7 +139,7 @@ export const Dashboard = () => {
                 </Card>
               ) : (
                 <motion.div 
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  className="grid grid-cols-1 gap-6"
                 >
                   {widgets.map((widget) => (
                     <WidgetCard 

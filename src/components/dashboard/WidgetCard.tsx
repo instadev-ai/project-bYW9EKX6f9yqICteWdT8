@@ -82,6 +82,7 @@ const ChartWidget = ({ data }: { data: ChartData }) => {
 
   const options = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         display: false,
@@ -94,16 +95,24 @@ const ChartWidget = ({ data }: { data: ChartData }) => {
     },
   };
 
-  switch (data.chartType) {
-    case 'bar':
-      return <Bar data={chartData} options={options} />;
-    case 'line':
-      return <Line data={chartData} options={options} />;
-    case 'pie':
-      return <Pie data={chartData} options={options} />;
-    default:
-      return null;
-  }
+  const ChartComponent = () => {
+    switch (data.chartType) {
+      case 'bar':
+        return <Bar data={chartData} options={options} />;
+      case 'line':
+        return <Line data={chartData} options={options} />;
+      case 'pie':
+        return <Pie data={chartData} options={options} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="w-full h-[300px]">
+      <ChartComponent />
+    </div>
+  );
 };
 
 const StatsWidget = ({ data }: { data: StatsData }) => {
@@ -111,18 +120,18 @@ const StatsWidget = ({ data }: { data: StatsData }) => {
   const isPositive = trend >= 0;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4 p-4">
       <div className="flex items-baseline justify-between">
-        <h3 className="text-3xl font-bold">{data.mainValue}</h3>
-        <div className={`flex items-center gap-1 ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-          {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-          <span className="font-medium">{trend}%</span>
+        <h3 className="text-4xl font-bold">{data.mainValue}</h3>
+        <div className={`flex items-center gap-2 ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+          {isPositive ? <TrendingUp className="h-6 w-6" /> : <TrendingDown className="h-6 w-6" />}
+          <span className="text-xl font-medium">{trend}%</span>
         </div>
       </div>
-      <div className="text-sm text-muted-foreground">
+      <div className="text-lg text-muted-foreground">
         Previous: {data.previousValue}
       </div>
-      <div className="text-sm text-muted-foreground">
+      <div className="text-lg text-muted-foreground">
         {data.timeFrame}
       </div>
     </div>
@@ -130,18 +139,17 @@ const StatsWidget = ({ data }: { data: StatsData }) => {
 };
 
 const TableWidget = ({ data }: { data: TableData }) => {
-  // Add safety check for data structure
   if (!data || !data.headers || !data.rows) {
     return <div className="text-muted-foreground">Invalid table data</div>;
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto w-full">
+      <table className="w-full text-base">
         <thead>
           <tr className="border-b">
             {data.headers.map((header: string, index: number) => (
-              <th key={index} className="text-left py-2 font-medium">
+              <th key={index} className="text-left py-3 px-4 font-medium">
                 {header}
               </th>
             ))}
@@ -149,9 +157,9 @@ const TableWidget = ({ data }: { data: TableData }) => {
         </thead>
         <tbody>
           {data.rows.map((row: string[], rowIndex: number) => (
-            <tr key={rowIndex} className="border-b last:border-0">
+            <tr key={rowIndex} className="border-b last:border-0 hover:bg-accent/5">
               {row.map((cell: string, cellIndex: number) => (
-                <td key={cellIndex} className="py-2">
+                <td key={cellIndex} className="py-3 px-4">
                   {cell}
                 </td>
               ))}
@@ -208,16 +216,16 @@ export const WidgetCard = ({ widget, onDelete }: WidgetCardProps) => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       layout
-      className="col-span-1"
+      className="w-full"
     >
-      <Card className="p-6 h-full hover:shadow-lg transition-all duration-300 hover:bg-accent/5">
-        <div className="flex justify-between items-start mb-4">
+      <Card className="p-6 hover:shadow-lg transition-all duration-300 hover:bg-accent/5">
+        <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
-              <Icon className="h-5 w-5 text-primary" />
+            <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+              <Icon className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold">{widget.widgetName}</h3>
+              <h3 className="text-xl font-semibold">{widget.widgetName}</h3>
               <p className="text-sm text-muted-foreground">
                 Created on {formattedDate}
               </p>
@@ -229,17 +237,17 @@ export const WidgetCard = ({ widget, onDelete }: WidgetCardProps) => {
             onClick={() => onDelete(widget.id)}
             className="hover:bg-destructive/10 hover:text-destructive"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-5 w-5" />
           </Button>
         </div>
         
-        <div className="mb-4">
+        <div className="mb-6">
           {renderWidgetContent()}
         </div>
         
-        <p className="text-sm text-muted-foreground mt-4">{widget.description}</p>
-        <div className="mt-4">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+        <div className="flex justify-between items-center mt-6">
+          <p className="text-sm text-muted-foreground">{widget.description}</p>
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary">
             {widget.widgetType}
           </span>
         </div>
