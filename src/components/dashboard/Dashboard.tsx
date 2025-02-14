@@ -4,18 +4,13 @@ import {
   Users,
   ShoppingCart,
   TrendingUp,
-  BarChart3,
-  Table,
-  LineChart,
-  Settings,
-  Trash2,
 } from "lucide-react";
 import { Confetti } from "../confetti/Confetti";
 import { motion, AnimatePresence } from "framer-motion";
 import { CreateWidgetModal } from "./CreateWidgetModal";
 import { useEffect, useState } from "react";
-import { Button } from "../ui/button";
 import { useToast } from "../ui/use-toast";
+import { WidgetCard } from "./WidgetCard";
 import type { Widget } from "./CreateWidgetModal";
 
 const StatCard = ({
@@ -52,64 +47,6 @@ const StatCard = ({
     </Card>
   </motion.div>
 );
-
-const WidgetCard = ({ widget, onDelete }: { widget: Widget; onDelete: (id: number) => void }) => {
-  const getWidgetIcon = (type: string) => {
-    switch (type) {
-      case 'chart':
-        return BarChart3;
-      case 'table':
-        return Table;
-      case 'stats':
-        return LineChart;
-      default:
-        return Settings;
-    }
-  };
-
-  const Icon = getWidgetIcon(widget.widgetType);
-  const formattedDate = new Date(widget.createdAt).toLocaleDateString();
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      layout
-      className="col-span-1"
-    >
-      <Card className="p-6 h-full hover:shadow-lg transition-all duration-300 hover:bg-accent/5">
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
-              <Icon className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold">{widget.widgetName}</h3>
-              <p className="text-sm text-muted-foreground">
-                Created on {formattedDate}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(widget.id)}
-            className="hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-        <p className="text-sm text-muted-foreground">{widget.description}</p>
-        <div className="mt-4">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-            {widget.widgetType}
-          </span>
-        </div>
-      </Card>
-    </motion.div>
-  );
-};
 
 export const Dashboard = () => {
   const [widgets, setWidgets] = useState<Widget[]>([]);

@@ -9,10 +9,24 @@ import { useToast } from "@/components/ui/use-toast";
 
 Modal.setAppElement("#root");
 
-interface WidgetFormData {
-  widgetName: string;
-  widgetType: string;
-  description: string;
+// Define the data structure for each widget type
+interface ChartData {
+  labels: string[];
+  values: number[];
+  chartType: 'bar' | 'line' | 'pie';
+  backgroundColor: string[];
+}
+
+interface StatsData {
+  mainValue: string;
+  trend: number;
+  previousValue: string;
+  timeFrame: string;
+}
+
+interface TableData {
+  headers: string[];
+  rows: string[][];
 }
 
 export interface Widget {
@@ -21,6 +35,7 @@ export interface Widget {
   widgetType: string;
   description: string;
   createdAt: string;
+  data: ChartData | StatsData | TableData;
 }
 
 interface CreateWidgetModalProps {
@@ -28,6 +43,155 @@ interface CreateWidgetModalProps {
 }
 
 const STORAGE_KEY = "widget_form_draft";
+
+const defaultChartData: ChartData = {
+  labels: ['Jan', 'Feb', 'Mar'],
+  values: [30, 50, 70],
+  chartType: 'bar',
+  backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1']
+};
+
+const defaultStatsData: StatsData = {
+  mainValue: '1,234',
+  trend: 12.5,
+  previousValue: '1,100',
+  timeFrame: 'This Month'
+};
+
+const defaultTableData: TableData = {
+  headers: ['Name', 'Value', 'Change'],
+  rows: [
+    ['Item 1', '$100', '+10%'],
+    ['Item 2', '$200', '-5%'],
+    ['Item 3', '$300', '+15%']
+  ]
+};
+
+const ChartForm = ({ data, onChange }: { 
+  data: ChartData; 
+  onChange: (data: ChartData) => void;
+}) => {
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Chart Type</Label>
+        <select
+          className="w-full h-10 px-3 rounded-md border border-input bg-background"
+          value={data.chartType}
+          onChange={(e) => onChange({ ...data, chartType: e.target.value as 'bar' | 'line' | 'pie' })}
+        >
+          <option value="bar">Bar Chart</option>
+          <option value="line">Line Chart</option>
+          <option value="pie">Pie Chart</option>
+        </select>
+      </div>
+      
+      <div>
+        <Label>Labels (comma-separated)</Label>
+        <Input
+          value={data.labels.join(', ')}
+          onChange={(e) => onChange({ 
+            ...data, 
+            labels: e.target.value.split(',').map(s => s.trim()) 
+          })}
+          placeholder="Jan, Feb, Mar"
+        />
+      </div>
+      
+      <div>
+        <Label>Values (comma-separated)</Label>
+        <Input
+          value={data.values.join(', ')}
+          onChange={(e) => onChange({ 
+            ...data, 
+            values: e.target.value.split(',').map(s => parseFloat(s.trim()) || 0) 
+          })}
+          placeholder="30, 50, 70"
+        />
+      </div>
+    </div>
+  );
+};
+
+const StatsForm = ({ data, onChange }: { 
+  data: StatsData; 
+  onChange: (data: StatsData) => void;
+}) => {
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Main Value</Label>
+        <Input
+          value={data.mainValue}
+          onChange={(e) => onChange({ ...data, mainValue: e.target.value })}
+          placeholder="1,234"
+        />
+      </div>
+      
+      <div>
+        <Label>Trend (%)</Label>
+        <Input
+          type="number"
+          value={data.trend}
+          onChange={(e) => onChange({ ...data, trend: parseFloat(e.target.value) })}
+          placeholder="12.5"
+        />
+      </div>
+      
+      <div>
+        <Label>Previous Value</Label>
+        <Input
+          value={data.previousValue}
+          onChange={(e) => onChange({ ...data, previousValue: e.target.value })}
+          placeholder="1,100"
+        />
+      </div>
+      
+      <div>
+        <Label>Time Frame</Label>
+        <Input
+          value={data.timeFrame}
+          onChange={(e) => onChange({ ...data, timeFrame: e.target.value })}
+          placeholder="This Month"
+        />
+      </div>
+    </div>
+  );
+};
+
+const TableForm = ({ data, onChange }: { 
+  data: TableData; 
+  onChange: (data: TableData) => void;
+}) => {
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Headers (comma-separated)</Label>
+        <Input
+          value={data.headers.join(', ')}
+          onChange={(e) => onChange({ 
+            ...data, 
+            headers: e.target.value.split(',').map(s => s.trim()) 
+          })}
+          placeholder="Name, Value, Change"
+        />
+      </div>
+      
+      <div>
+        <Label>Rows (one per line, values comma-separated)</Label>
+        <textarea
+          className="w-full min-h-[100px] px-3 py-2 rounded-md border border-input bg-background resize-none"
+          value={data.rows.map(row => row.join(', ')).join('\n')}
+          onChange={(e) => onChange({ 
+            ...data, 
+            rows: e.target.value.split('\n').map(row => row.split(',').map(cell => cell.trim())) 
+          })}
+          placeholder="Item 1, $100, +10%&#10;Item 2, $200, -5%&#10;Item 3, $300, +15%"
+        />
+      </div>
+    </div>
+  );
+};
 
 const customStyles = {
   overlay: {
@@ -49,45 +213,38 @@ const customStyles = {
   },
 };
 
-const initialFormData: WidgetFormData = {
-  widgetName: "",
-  widgetType: "chart",
-  description: "",
-};
-
 export const CreateWidgetModal = ({ onWidgetCreated }: CreateWidgetModalProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [formData, setFormData] = useState<WidgetFormData>(initialFormData);
-  const [errors, setErrors] = useState<Partial<WidgetFormData>>({});
+  const [widgetName, setWidgetName] = useState("");
+  const [widgetType, setWidgetType] = useState("chart");
+  const [description, setDescription] = useState("");
+  const [widgetData, setWidgetData] = useState<ChartData | StatsData | TableData>(defaultChartData);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   useEffect(() => {
-    if (isOpen) {
-      const savedDraft = localStorage.getItem(STORAGE_KEY);
-      if (savedDraft) {
-        setFormData(JSON.parse(savedDraft));
-        toast({
-          title: "Draft Loaded",
-          description: "Your previous draft has been restored.",
-        });
-      }
+    // Set default data based on widget type
+    switch (widgetType) {
+      case 'chart':
+        setWidgetData(defaultChartData);
+        break;
+      case 'stats':
+        setWidgetData(defaultStatsData);
+        break;
+      case 'table':
+        setWidgetData(defaultTableData);
+        break;
     }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen && Object.values(formData).some(value => value !== "")) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
-    }
-  }, [formData, isOpen]);
+  }, [widgetType]);
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<WidgetFormData> = {};
+    const newErrors: Record<string, string> = {};
     
-    if (!formData.widgetName.trim()) {
+    if (!widgetName.trim()) {
       newErrors.widgetName = "Widget name is required";
     }
     
-    if (!formData.description.trim()) {
+    if (!description.trim()) {
       newErrors.description = "Description is required";
     }
 
@@ -95,44 +252,24 @@ export const CreateWidgetModal = ({ onWidgetCreated }: CreateWidgetModalProps) =
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
-    
-    if (errors[name as keyof WidgetFormData]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: undefined,
-      }));
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
-      const newWidget = {
-        ...formData,
+      const newWidget: Widget = {
         id: Date.now(),
+        widgetName,
+        widgetType,
+        description,
         createdAt: new Date().toISOString(),
+        data: widgetData
       };
       
       const existingWidgets = JSON.parse(localStorage.getItem("completed_widgets") || "[]");
       const updatedWidgets = [...existingWidgets, newWidget];
       
       localStorage.setItem("completed_widgets", JSON.stringify(updatedWidgets));
-      
-      // Call the callback with the new widget
       onWidgetCreated(newWidget);
-      
-      // Clear the draft
-      localStorage.removeItem(STORAGE_KEY);
-      setFormData(initialFormData);
       
       toast({
         title: "Success!",
@@ -154,15 +291,10 @@ export const CreateWidgetModal = ({ onWidgetCreated }: CreateWidgetModalProps) =
   const closeModal = () => {
     setIsOpen(false);
     setErrors({});
-  };
-
-  const clearDraft = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setFormData(initialFormData);
-    toast({
-      title: "Draft Cleared",
-      description: "Your draft has been cleared.",
-    });
+    setWidgetName("");
+    setDescription("");
+    setWidgetType("chart");
+    setWidgetData(defaultChartData);
   };
 
   return (
@@ -212,11 +344,10 @@ export const CreateWidgetModal = ({ onWidgetCreated }: CreateWidgetModalProps) =
                   </Label>
                   <Input
                     id="widgetName"
-                    name="widgetName"
-                    value={formData.widgetName}
-                    onChange={handleInputChange}
+                    value={widgetName}
+                    onChange={(e) => setWidgetName(e.target.value)}
                     placeholder="Enter widget name"
-                    className={`w-full ${errors.widgetName ? 'border-red-500' : ''}`}
+                    className={errors.widgetName ? 'border-red-500' : ''}
                   />
                   {errors.widgetName && (
                     <p className="text-sm text-red-500">{errors.widgetName}</p>
@@ -227,17 +358,44 @@ export const CreateWidgetModal = ({ onWidgetCreated }: CreateWidgetModalProps) =
                   <Label htmlFor="widgetType">Widget Type</Label>
                   <select
                     id="widgetType"
-                    name="widgetType"
-                    value={formData.widgetType}
-                    onChange={handleInputChange}
+                    value={widgetType}
+                    onChange={(e) => setWidgetType(e.target.value)}
                     className="w-full h-10 px-3 rounded-md border border-input bg-background"
                   >
                     <option value="chart">Chart</option>
                     <option value="stats">Statistics</option>
                     <option value="table">Table</option>
-                    <option value="custom">Custom</option>
                   </select>
                 </div>
+
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={widgetType}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    {widgetType === 'chart' && (
+                      <ChartForm 
+                        data={widgetData as ChartData} 
+                        onChange={setWidgetData} 
+                      />
+                    )}
+                    {widgetType === 'stats' && (
+                      <StatsForm 
+                        data={widgetData as StatsData} 
+                        onChange={setWidgetData} 
+                      />
+                    )}
+                    {widgetType === 'table' && (
+                      <TableForm 
+                        data={widgetData as TableData} 
+                        onChange={setWidgetData} 
+                      />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
 
                 <div className="space-y-2">
                   <Label htmlFor="description">
@@ -245,9 +403,8 @@ export const CreateWidgetModal = ({ onWidgetCreated }: CreateWidgetModalProps) =
                   </Label>
                   <textarea
                     id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     placeholder="Enter widget description"
                     className={`w-full min-h-[100px] px-3 py-2 rounded-md border border-input bg-background resize-none ${
                       errors.description ? 'border-red-500' : ''
@@ -258,28 +415,19 @@ export const CreateWidgetModal = ({ onWidgetCreated }: CreateWidgetModalProps) =
                   )}
                 </div>
 
-                <div className="flex gap-4 justify-between">
+                <div className="flex gap-4 justify-end">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={clearDraft}
+                    onClick={closeModal}
                   >
-                    Clear Draft
+                    Cancel
                   </Button>
-                  <div className="flex gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={closeModal}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                    >
-                      Create Widget
-                    </Button>
-                  </div>
+                  <Button
+                    type="submit"
+                  >
+                    Create Widget
+                  </Button>
                 </div>
               </form>
             </div>
