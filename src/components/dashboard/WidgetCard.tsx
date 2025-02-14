@@ -48,7 +48,26 @@ interface WidgetCardProps {
   onDelete: (id: number) => void;
 }
 
-const ChartWidget = ({ data }: { data: any }) => {
+interface ChartData {
+  labels: string[];
+  values: number[];
+  chartType: 'bar' | 'line' | 'pie';
+  backgroundColor: string[];
+}
+
+interface StatsData {
+  mainValue: string;
+  trend: number;
+  previousValue: string;
+  timeFrame: string;
+}
+
+interface TableData {
+  headers: string[];
+  rows: string[][];
+}
+
+const ChartWidget = ({ data }: { data: ChartData }) => {
   const chartData = {
     labels: data.labels,
     datasets: [
@@ -87,8 +106,8 @@ const ChartWidget = ({ data }: { data: any }) => {
   }
 };
 
-const StatsWidget = ({ data }: { data: any }) => {
-  const trend = parseFloat(data.trend);
+const StatsWidget = ({ data }: { data: StatsData }) => {
+  const trend = parseFloat(data.trend.toString());
   const isPositive = trend >= 0;
 
   return (
@@ -110,7 +129,12 @@ const StatsWidget = ({ data }: { data: any }) => {
   );
 };
 
-const TableWidget = ({ data }: { data: any }) => {
+const TableWidget = ({ data }: { data: TableData }) => {
+  // Add safety check for data structure
+  if (!data || !data.headers || !data.rows) {
+    return <div className="text-muted-foreground">Invalid table data</div>;
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -157,15 +181,24 @@ export const WidgetCard = ({ widget, onDelete }: WidgetCardProps) => {
   const formattedDate = new Date(widget.createdAt).toLocaleDateString();
 
   const renderWidgetContent = () => {
-    switch (widget.widgetType) {
-      case 'chart':
-        return <ChartWidget data={widget.data} />;
-      case 'stats':
-        return <StatsWidget data={widget.data} />;
-      case 'table':
-        return <TableWidget data={widget.data} />;
-      default:
-        return null;
+    if (!widget.data) {
+      return <div className="text-muted-foreground">No data available</div>;
+    }
+
+    try {
+      switch (widget.widgetType) {
+        case 'chart':
+          return <ChartWidget data={widget.data as ChartData} />;
+        case 'stats':
+          return <StatsWidget data={widget.data as StatsData} />;
+        case 'table':
+          return <TableWidget data={widget.data as TableData} />;
+        default:
+          return <div className="text-muted-foreground">Unknown widget type</div>;
+      }
+    } catch (error) {
+      console.error('Error rendering widget:', error);
+      return <div className="text-muted-foreground">Error rendering widget</div>;
     }
   };
 
