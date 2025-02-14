@@ -11,19 +11,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { Confetti } from "../confetti/Confetti";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { CreateWidgetModal } from "./CreateWidgetModal";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { useToast } from "../ui/use-toast";
-
-interface Widget {
-  id: number;
-  widgetName: string;
-  widgetType: string;
-  description: string;
-  createdAt: string;
-}
+import type { Widget } from "./CreateWidgetModal";
 
 const StatCard = ({
   title,
@@ -123,26 +116,23 @@ export const Dashboard = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const loadWidgets = () => {
-      const savedWidgets = localStorage.getItem("completed_widgets");
-      if (savedWidgets) {
-        setWidgets(JSON.parse(savedWidgets));
-      }
-    };
-
-    loadWidgets();
-    // Listen for storage changes from other tabs/windows
-    window.addEventListener("storage", loadWidgets);
-    
-    return () => {
-      window.removeEventListener("storage", loadWidgets);
-    };
+    const savedWidgets = localStorage.getItem("completed_widgets");
+    if (savedWidgets) {
+      setWidgets(JSON.parse(savedWidgets));
+    }
   }, []);
 
+  const handleWidgetCreated = (newWidget: Widget) => {
+    setWidgets(prevWidgets => [...prevWidgets, newWidget]);
+  };
+
   const handleDeleteWidget = (id: number) => {
-    const updatedWidgets = widgets.filter(widget => widget.id !== id);
-    localStorage.setItem("completed_widgets", JSON.stringify(updatedWidgets));
-    setWidgets(updatedWidgets);
+    setWidgets(prevWidgets => {
+      const updatedWidgets = prevWidgets.filter(widget => widget.id !== id);
+      localStorage.setItem("completed_widgets", JSON.stringify(updatedWidgets));
+      return updatedWidgets;
+    });
+    
     toast({
       title: "Widget Deleted",
       description: "The widget has been removed successfully.",
@@ -166,7 +156,7 @@ export const Dashboard = () => {
             >
               Dashboard Overview
             </motion.h1>
-            <CreateWidgetModal />
+            <CreateWidgetModal onWidgetCreated={handleWidgetCreated} />
           </div>
           
           <motion.div 
@@ -205,23 +195,25 @@ export const Dashboard = () => {
               </span>
             </div>
             
-            {widgets.length === 0 ? (
-              <Card className="p-8 text-center text-muted-foreground">
-                <p>No widgets created yet. Click the "Create a new widget" button to get started!</p>
-              </Card>
-            ) : (
-              <motion.div 
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-              >
-                {widgets.map((widget) => (
-                  <WidgetCard 
-                    key={widget.id} 
-                    widget={widget} 
-                    onDelete={handleDeleteWidget}
-                  />
-                ))}
-              </motion.div>
-            )}
+            <AnimatePresence mode="popLayout">
+              {widgets.length === 0 ? (
+                <Card className="p-8 text-center text-muted-foreground">
+                  <p>No widgets created yet. Click the "Create a new widget" button to get started!</p>
+                </Card>
+              ) : (
+                <motion.div 
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  {widgets.map((widget) => (
+                    <WidgetCard 
+                      key={widget.id} 
+                      widget={widget} 
+                      onDelete={handleDeleteWidget}
+                    />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>

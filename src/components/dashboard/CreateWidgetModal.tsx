@@ -15,6 +15,18 @@ interface WidgetFormData {
   description: string;
 }
 
+export interface Widget {
+  id: number;
+  widgetName: string;
+  widgetType: string;
+  description: string;
+  createdAt: string;
+}
+
+interface CreateWidgetModalProps {
+  onWidgetCreated: (widget: Widget) => void;
+}
+
 const STORAGE_KEY = "widget_form_draft";
 
 const customStyles = {
@@ -43,13 +55,12 @@ const initialFormData: WidgetFormData = {
   description: "",
 };
 
-export const CreateWidgetModal = () => {
+export const CreateWidgetModal = ({ onWidgetCreated }: CreateWidgetModalProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState<WidgetFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<WidgetFormData>>({});
   const { toast } = useToast();
 
-  // Load saved draft when modal opens
   useEffect(() => {
     if (isOpen) {
       const savedDraft = localStorage.getItem(STORAGE_KEY);
@@ -63,7 +74,6 @@ export const CreateWidgetModal = () => {
     }
   }, [isOpen]);
 
-  // Save draft when form data changes
   useEffect(() => {
     if (isOpen && Object.values(formData).some(value => value !== "")) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
@@ -94,7 +104,6 @@ export const CreateWidgetModal = () => {
       [name]: value,
     }));
     
-    // Clear error when user starts typing
     if (errors[name as keyof WidgetFormData]) {
       setErrors(prev => ({
         ...prev,
@@ -107,21 +116,23 @@ export const CreateWidgetModal = () => {
     e.preventDefault();
     
     if (validateForm()) {
-      // Save to localStorage as completed widget
-      const existingWidgets = JSON.parse(localStorage.getItem("completed_widgets") || "[]");
       const newWidget = {
         ...formData,
         id: Date.now(),
         createdAt: new Date().toISOString(),
       };
       
-      localStorage.setItem(
-        "completed_widgets",
-        JSON.stringify([...existingWidgets, newWidget])
-      );
+      const existingWidgets = JSON.parse(localStorage.getItem("completed_widgets") || "[]");
+      const updatedWidgets = [...existingWidgets, newWidget];
+      
+      localStorage.setItem("completed_widgets", JSON.stringify(updatedWidgets));
+      
+      // Call the callback with the new widget
+      onWidgetCreated(newWidget);
       
       // Clear the draft
       localStorage.removeItem(STORAGE_KEY);
+      setFormData(initialFormData);
       
       toast({
         title: "Success!",
