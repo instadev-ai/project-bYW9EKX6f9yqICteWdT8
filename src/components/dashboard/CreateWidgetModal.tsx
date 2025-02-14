@@ -1,13 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "react-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/components/ui/use-toast";
 
 Modal.setAppElement("#root");
+
+interface WidgetFormData {
+  widgetName: string;
+  widgetType: string;
+  description: string;
+}
+
+const STORAGE_KEY = "widget_form_draft";
 
 const customStyles = {
   overlay: {
@@ -29,11 +37,122 @@ const customStyles = {
   },
 };
 
+const initialFormData: WidgetFormData = {
+  widgetName: "",
+  widgetType: "chart",
+  description: "",
+};
+
 export const CreateWidgetModal = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [formData, setFormData] = useState<WidgetFormData>(initialFormData);
+  const [errors, setErrors] = useState<Partial<WidgetFormData>>({});
+  const { toast } = useToast();
+
+  // Load saved draft when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const savedDraft = localStorage.getItem(STORAGE_KEY);
+      if (savedDraft) {
+        setFormData(JSON.parse(savedDraft));
+        toast({
+          title: "Draft Loaded",
+          description: "Your previous draft has been restored.",
+        });
+      }
+    }
+  }, [isOpen]);
+
+  // Save draft when form data changes
+  useEffect(() => {
+    if (isOpen && Object.values(formData).some(value => value !== "")) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+    }
+  }, [formData, isOpen]);
+
+  const validateForm = (): boolean => {
+    const newErrors: Partial<WidgetFormData> = {};
+    
+    if (!formData.widgetName.trim()) {
+      newErrors.widgetName = "Widget name is required";
+    }
+    
+    if (!formData.description.trim()) {
+      newErrors.description = "Description is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+    
+    // Clear error when user starts typing
+    if (errors[name as keyof WidgetFormData]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: undefined,
+      }));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (validateForm()) {
+      // Save to localStorage as completed widget
+      const existingWidgets = JSON.parse(localStorage.getItem("completed_widgets") || "[]");
+      const newWidget = {
+        ...formData,
+        id: Date.now(),
+        createdAt: new Date().toISOString(),
+      };
+      
+      localStorage.setItem(
+        "completed_widgets",
+        JSON.stringify([...existingWidgets, newWidget])
+      );
+      
+      // Clear the draft
+      localStorage.removeItem(STORAGE_KEY);
+      
+      toast({
+        title: "Success!",
+        description: "Widget has been created successfully.",
+      });
+      
+      closeModal();
+    } else {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const openModal = () => setIsOpen(true);
-  const closeModal = () => setIsOpen(false);
+  
+  const closeModal = () => {
+    setIsOpen(false);
+    setErrors({});
+  };
+
+  const clearDraft = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setFormData(initialFormData);
+    toast({
+      title: "Draft Cleared",
+      description: "Your draft has been cleared.",
+    });
+  };
 
   return (
     <>
@@ -75,20 +194,31 @@ export const CreateWidgetModal = () => {
                 </Button>
               </div>
 
-              <form className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="widgetName">Widget Name</Label>
+                  <Label htmlFor="widgetName">
+                    Widget Name <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="widgetName"
+                    name="widgetName"
+                    value={formData.widgetName}
+                    onChange={handleInputChange}
                     placeholder="Enter widget name"
-                    className="w-full"
+                    className={`w-full ${errors.widgetName ? 'border-red-500' : ''}`}
                   />
+                  {errors.widgetName && (
+                    <p className="text-sm text-red-500">{errors.widgetName}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="widgetType">Widget Type</Label>
                   <select
                     id="widgetType"
+                    name="widgetType"
+                    value={formData.widgetType}
+                    onChange={handleInputChange}
                     className="w-full h-10 px-3 rounded-md border border-input bg-background"
                   >
                     <option value="chart">Chart</option>
@@ -99,32 +229,46 @@ export const CreateWidgetModal = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">
+                    Description <span className="text-red-500">*</span>
+                  </Label>
                   <textarea
                     id="description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
                     placeholder="Enter widget description"
-                    className="w-full min-h-[100px] px-3 py-2 rounded-md border border-input bg-background resize-none"
+                    className={`w-full min-h-[100px] px-3 py-2 rounded-md border border-input bg-background resize-none ${
+                      errors.description ? 'border-red-500' : ''
+                    }`}
                   />
+                  {errors.description && (
+                    <p className="text-sm text-red-500">{errors.description}</p>
+                  )}
                 </div>
 
-                <div className="flex gap-4 justify-end">
+                <div className="flex gap-4 justify-between">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={closeModal}
+                    onClick={clearDraft}
                   >
-                    Cancel
+                    Clear Draft
                   </Button>
-                  <Button
-                    type="submit"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      // Handle form submission here
-                      closeModal();
-                    }}
-                  >
-                    Create Widget
-                  </Button>
+                  <div className="flex gap-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={closeModal}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                    >
+                      Create Widget
+                    </Button>
+                  </div>
                 </div>
               </form>
             </div>
