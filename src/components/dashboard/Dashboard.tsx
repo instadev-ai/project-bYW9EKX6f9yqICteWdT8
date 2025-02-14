@@ -4,10 +4,26 @@ import {
   Users,
   ShoppingCart,
   TrendingUp,
+  BarChart3,
+  Table,
+  LineChart,
+  Settings,
+  Trash2,
 } from "lucide-react";
 import { Confetti } from "../confetti/Confetti";
 import { motion } from "framer-motion";
 import { CreateWidgetModal } from "./CreateWidgetModal";
+import { useEffect, useState } from "react";
+import { Button } from "../ui/button";
+import { useToast } from "../ui/use-toast";
+
+interface Widget {
+  id: number;
+  widgetName: string;
+  widgetType: string;
+  description: string;
+  createdAt: string;
+}
 
 const StatCard = ({
   title,
@@ -44,28 +60,95 @@ const StatCard = ({
   </motion.div>
 );
 
-const ActivityCard = ({ title }: { title: string }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5 }}
-  >
-    <Card className="p-6 h-full hover:shadow-lg transition-all duration-300 hover:bg-accent/5">
-      <h2 className="text-xl font-semibold mb-4">{title}</h2>
-      <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <motion.div
-            key={i}
-            whileHover={{ scale: 1.01, x: 5 }}
-            className="h-12 bg-muted/50 rounded-md hover:bg-muted/70 transition-colors duration-200 cursor-pointer"
-          />
-        ))}
-      </div>
-    </Card>
-  </motion.div>
-);
+const WidgetCard = ({ widget, onDelete }: { widget: Widget; onDelete: (id: number) => void }) => {
+  const getWidgetIcon = (type: string) => {
+    switch (type) {
+      case 'chart':
+        return BarChart3;
+      case 'table':
+        return Table;
+      case 'stats':
+        return LineChart;
+      default:
+        return Settings;
+    }
+  };
+
+  const Icon = getWidgetIcon(widget.widgetType);
+  const formattedDate = new Date(widget.createdAt).toLocaleDateString();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      layout
+      className="col-span-1"
+    >
+      <Card className="p-6 h-full hover:shadow-lg transition-all duration-300 hover:bg-accent/5">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+              <Icon className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold">{widget.widgetName}</h3>
+              <p className="text-sm text-muted-foreground">
+                Created on {formattedDate}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(widget.id)}
+            className="hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground">{widget.description}</p>
+        <div className="mt-4">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+            {widget.widgetType}
+          </span>
+        </div>
+      </Card>
+    </motion.div>
+  );
+};
 
 export const Dashboard = () => {
+  const [widgets, setWidgets] = useState<Widget[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const loadWidgets = () => {
+      const savedWidgets = localStorage.getItem("completed_widgets");
+      if (savedWidgets) {
+        setWidgets(JSON.parse(savedWidgets));
+      }
+    };
+
+    loadWidgets();
+    // Listen for storage changes from other tabs/windows
+    window.addEventListener("storage", loadWidgets);
+    
+    return () => {
+      window.removeEventListener("storage", loadWidgets);
+    };
+  }, []);
+
+  const handleDeleteWidget = (id: number) => {
+    const updatedWidgets = widgets.filter(widget => widget.id !== id);
+    localStorage.setItem("completed_widgets", JSON.stringify(updatedWidgets));
+    setWidgets(updatedWidgets);
+    toast({
+      title: "Widget Deleted",
+      description: "The widget has been removed successfully.",
+    });
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -114,15 +197,32 @@ export const Dashboard = () => {
             />
           </motion.div>
 
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6"
-          >
-            <ActivityCard title="Recent Activity" />
-            <ActivityCard title="Performance" />
-          </motion.div>
+          <div className="mt-12">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold">Your Widgets</h2>
+              <span className="text-sm text-muted-foreground">
+                {widgets.length} widget{widgets.length !== 1 ? 's' : ''} created
+              </span>
+            </div>
+            
+            {widgets.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground">
+                <p>No widgets created yet. Click the "Create a new widget" button to get started!</p>
+              </Card>
+            ) : (
+              <motion.div 
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              >
+                {widgets.map((widget) => (
+                  <WidgetCard 
+                    key={widget.id} 
+                    widget={widget} 
+                    onDelete={handleDeleteWidget}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>
